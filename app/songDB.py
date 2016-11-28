@@ -1,4 +1,4 @@
-from song import Song
+from app.models.song import Song
 
 song = Song("Safe and Sound", "Capital Cites", "www.youtube.com/watch?v=47dtFZ8CFo8")
 song2 = Song("In The End", "Linkin Park", "www.youtube.com/watch?v=eVTXPUF4Oz4")
