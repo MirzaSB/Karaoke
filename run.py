@@ -1,6 +1,6 @@
 from flask import Flask
 
-from app.controllers.interface import Interface
+from app.controllers.machine_controller import MachineController
 
 app = Flask(__name__)
 
@@ -12,5 +12,5 @@ def hello_world():
 
 if __name__ == '__main__':
     #app.run()
-    start = Interface()
+    start = MachineController()
     start.main()
