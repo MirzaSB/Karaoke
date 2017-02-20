@@ -1,5 +1,6 @@
-from pymongo import MongoClient, errors
+from pymongo import MongoClient, errors, TEXT
 from bson.objectid import ObjectId
+from app.models.song import Song
 
 '''
 A class containing all MongoDB methods and utilities.
@@ -13,6 +14,7 @@ class MongoController(MongoClient):
 
     # Property Constants.
     CONST_PROPERTY_ARTIST = "artist"
+    CONST_PROPERTY_ID = "_id"
     CONST_PROPERTY_TITLE = "title"
     CONST_PROPERTY_YOUTUBE = "youtube"
 
@@ -35,6 +37,10 @@ class MongoController(MongoClient):
         self.client = MongoController.connect(self)
         # Setup the "songs" collection.
         self.songsCollection = self.client.songs
+        # Add indexes for "artist" and "title" properties.
+        self.songsCollection.create_index([(self.CONST_PROPERTY_ARTIST, 1),
+                                           (self.CONST_PROPERTY_TITLE, 1)],
+                                            default_language='english')
 
     def connect(self):
         """
@@ -52,23 +58,49 @@ class MongoController(MongoClient):
             print("Could not connect to MongoDB. The exception message is below:")
             print(e)
 
-    def insert_song(self, artist, title, youtube):
+    def get_song(self, id):
+        """
+        Returns a song from MongoDB.
+
+        :param id: str: The "_id" value of the song.
+        :return: Song: The transformed song object from MongoDB.
+        """
+        # Get the song from MongoDB using the "_id" value.
+        songJson = self.songsCollection.find_one({self.CONST_PROPERTY_ID: ObjectId(id)})
+        # Transform the returned dictionary object to a song, and return it.
+        return self.transform_doc_to_song(songJson)
+
+    def insert_song(self, title, artist, youtube):
         """
         Inserts a song into the "songs" collection.
 
-        :param artist: str: The "artist" property value.
         :param title: str: The "title" property value.
+        :param artist: str: The "artist" property value.
         :param youtube: str: The "youtube" property value.
         :return: str: The "_id" value of the successfully inserted song from MongoDB.
         """
         # Create a JSON object containing all the "song" properties.
         json = {
-            self.CONST_PROPERTY_ARTIST: artist,
             self.CONST_PROPERTY_TITLE: title,
+            self.CONST_PROPERTY_ARTIST: artist,
             self.CONST_PROPERTY_YOUTUBE: youtube
         }
         # Store the JSON in MongoDB.
-        return self.songsCollection.insert(json)
+        return self.songsCollection.update({self.CONST_PROPERTY_ARTIST: artist,
+                                            self.CONST_PROPERTY_TITLE: title},
+                                            json, True)
+
+    def insert_song_object(self, songObj):
+        """
+        Inserts a Song object into MongoDB.
+
+        :param songObj: Song: The song object to insert.
+        :return: str: The "_id" value of the inserted song. If the song could not be entered, then "None" is returned.
+        """
+        if(isinstance(songObj, Song)):
+            return self.insert_song(songObj.get_artist(), songObj.get_title(), songObj.get_link())
+        else:
+            return None
 
     def remove_song(self, id):
         """
@@ -78,7 +110,7 @@ class MongoController(MongoClient):
         :return: DeletedResult: The object containing all the deleted document data.
         """
         # Remove the document from MongoDB, and get the "deleted_count" value.
-        deletedResult = self.songsCollection.delete_one({'_id': ObjectId(id)})
+        deletedResult = self.songsCollection.delete_one({self.CONST_PROPERTY_ID: ObjectId(id)})
         deletedCount = deletedResult.deleted_count
         if(deletedCount == 0):
             print("The document of the '_id' value, '%s' is not in MongoDB and hence could not be deleted." % id)
@@ -87,4 +119,14 @@ class MongoController(MongoClient):
         # Return the DeletedResult object.
         return deletedResult
 
-mongo = MongoController("localhost", "27017", "admin", "pa55word")
+    def transform_doc_to_song(self, json):
+        """
+        Transforms a MongoDB document to a Song object, and returns it.
+
+        :param json: dict: The dictionary object from MongoDB.
+        :return: Song: The processed Song object.
+        """
+        return Song(json.get(self.CONST_PROPERTY_TITLE, self.CONST_PROPERTY_ARTIST,
+                             self.CONST_PROPERTY_YOUTUBE))
+
+mongo = MongoController("localhost", "27017", "admin3", "pa55word")
